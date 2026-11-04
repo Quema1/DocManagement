@@ -30,7 +30,15 @@ internal sealed class ChannelPreviewConsumer(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Unhandled error while processing preview for document {DocumentId}", documentId);
+                await MarkFailedAsync(documentId, stoppingToken);
             }
         }
+    }
+
+    private async Task MarkFailedAsync(Guid documentId, CancellationToken stoppingToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var previewService = scope.ServiceProvider.GetRequiredService<PreviewService>();
+        await previewService.MarkFailedAsync(documentId, stoppingToken);
     }
 }

@@ -112,20 +112,13 @@ internal sealed class OutboxPublisher(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        message.Attempts++;
-        message.Error = exception.Message.Length > OutboxConstants.ErrorMaxLength
-            ? exception.Message[..OutboxConstants.ErrorMaxLength]
-            : exception.Message;
-
-        if (message.Attempts >= OutboxConstants.MaxAttempts)
+        if (OutboxRetryPolicy.RegisterFailure(message, exception.Message, UtcNow))
         {
             logger.LogError(exception, "Dead-lettering outbox message {MessageId} after {Attempts} attempts", message.Id, message.Attempts);
-            message.ProcessedAt = UtcNow;
             await MarkPreviewFailedAsync(dbContext, documentId, cancellationToken);
             return;
         }
 
-        message.NextAttemptAt = UtcNow + GetRetryDelay(message.Attempts);
         logger.LogWarning(exception, "Could not publish outbox message {MessageId} (attempt {Attempt}), next attempt at {NextAttemptAt}",
             message.Id, message.Attempts, message.NextAttemptAt);
     }
@@ -160,9 +153,6 @@ internal sealed class OutboxPublisher(
             logger.LogInformation("Deleted {Count} processed outbox message(s)", deleted);
         }
     }
-
-    private static TimeSpan GetRetryDelay(int attempts) =>
-        TimeSpan.FromMinutes(Math.Min(Math.Pow(2, attempts), OutboxConstants.MaxRetryDelayMinutes));
 
     private static bool IsBrokerUnavailable(Exception exception) =>
         exception is BrokerUnreachableException or ConnectFailureException or OperationInterruptedException;

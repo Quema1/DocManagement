@@ -120,6 +120,28 @@ public class DocumentServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_WhenPreviewIsPending_ResetsPreview()
+    {
+        var document = _repository.Seed(TestDocuments.Create(previewStatus: PreviewStatus.Pending));
+
+        var result = await _sut.UpdateAsync(document.Id, new DocumentRequest { Name = "Renamed", Description = "Q3 numbers" }, Ct);
+
+        Assert.Equal(PreviewStatus.None, result!.PreviewStatus);
+        Assert.Equal(PreviewStatus.None, _repository.Stored(document.Id).PreviewStatus);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_TreatsBlankDescriptionAsUnchanged_WhenStoredDescriptionIsNull()
+    {
+        var document = _repository.Seed(TestDocuments.Create(description: null, previewStatus: PreviewStatus.Ready, previewUrl: "https://x/p.png"));
+
+        var result = await _sut.UpdateAsync(document.Id, new DocumentRequest { Name = "Report", Description = "  " }, Ct);
+
+        Assert.Equal(PreviewStatus.Ready, result!.PreviewStatus);
+        Assert.Equal(0, _repository.SuccessfulUpdates);
+    }
+
+    [Fact]
     public async Task DeleteAsync_RemovesDocument()
     {
         var document = _repository.Seed(TestDocuments.Create());

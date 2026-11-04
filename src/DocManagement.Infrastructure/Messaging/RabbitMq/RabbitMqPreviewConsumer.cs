@@ -50,8 +50,21 @@ internal sealed class RabbitMqPreviewConsumer(
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled error while processing preview for document {DocumentId}", documentId);
+
+            if (args.Redelivered)
+            {
+                await MarkFailedAsync(documentId, stoppingToken);
+            }
+
             await channel.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: !args.Redelivered, stoppingToken);
         }
+    }
+
+    private async Task MarkFailedAsync(Guid documentId, CancellationToken stoppingToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var previewService = scope.ServiceProvider.GetRequiredService<PreviewService>();
+        await previewService.MarkFailedAsync(documentId, stoppingToken);
     }
 
     private async Task<IChannel> OpenChannelWithRetryAsync(CancellationToken stoppingToken)

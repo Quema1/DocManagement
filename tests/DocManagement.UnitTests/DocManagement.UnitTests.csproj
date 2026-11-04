@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DocManagement.Domain\DocManagement.Domain.csproj" />
     <ProjectReference Include="..\..\src\DocManagement.Application\DocManagement.Application.csproj" />
+    <ProjectReference Include="..\..\src\DocManagement.Infrastructure\DocManagement.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

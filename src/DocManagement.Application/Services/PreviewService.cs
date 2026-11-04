@@ -74,6 +74,22 @@ public class PreviewService(
         }
     }
 
+    public async Task MarkFailedAsync(Guid documentId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var document = await documentRepository.GetByIdAsync(documentId, cancellationToken);
+            if (document is { PreviewStatus: PreviewStatus.Pending })
+            {
+                await MarkFailedAsync(document, cancellationToken);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Could not mark preview of document {DocumentId} as failed", documentId);
+        }
+    }
+
     private OutboxMessage CreatePreviewRequestedMessage(Guid documentId) => new()
     {
         Id = Guid.NewGuid(),

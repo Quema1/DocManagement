@@ -1,3 +1,4 @@
+using DocManagement.Application.Exceptions;
 using DocManagement.Application.Interfaces;
 using DocManagement.Domain;
 
@@ -11,15 +12,17 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
 
     public int SuccessfulUpdates { get; private set; }
 
-    public IReadOnlyCollection<Document> All => _documents.Values;
+    public IReadOnlyCollection<Document> All => _documents.Values.Select(Copy).ToList();
 
     public List<OutboxMessage> OutboxMessages { get; } = [];
 
     public Document Seed(Document document)
     {
-        _documents[document.Id] = document;
+        _documents[document.Id] = Copy(document);
         return document;
     }
+
+    public Document Stored(Guid id) => Copy(_documents[id]);
 
     public Task<IReadOnlyList<Document>> GetListAsync(int skip, int take, CancellationToken cancellationToken = default)
     {
@@ -28,6 +31,7 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
             .ThenBy(d => d.Id)
             .Skip(skip)
             .Take(take)
+            .Select(Copy)
             .ToList();
         return Task.FromResult(page);
     }
@@ -35,7 +39,7 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
     public Task<int> CountAsync(CancellationToken cancellationToken = default) => Task.FromResult(_documents.Count);
 
     public Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_documents.GetValueOrDefault(id));
+        Task.FromResult(_documents.TryGetValue(id, out var document) ? Copy(document) : null);
 
     public Task<IReadOnlyList<Guid>> GetIdsByPreviewStatusAsync(PreviewStatus status, CancellationToken cancellationToken = default)
     {
@@ -45,7 +49,7 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
 
     public Task AddAsync(Document document, CancellationToken cancellationToken = default)
     {
-        _documents.Add(document.Id, document);
+        _documents.Add(document.Id, Copy(document));
         return Task.CompletedTask;
     }
 
@@ -56,7 +60,12 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
             throw failure;
         }
 
-        _documents[document.Id] = document;
+        if (!_documents.ContainsKey(document.Id))
+        {
+            throw new ConcurrencyConflictException("The document was deleted.");
+        }
+
+        _documents[document.Id] = Copy(document);
         SuccessfulUpdates++;
         return Task.CompletedTask;
     }
@@ -72,4 +81,15 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
         _documents.Remove(document.Id);
         return Task.CompletedTask;
     }
+
+    private static Document Copy(Document document) => new()
+    {
+        Id = document.Id,
+        Name = document.Name,
+        Description = document.Description,
+        CreatedAt = document.CreatedAt,
+        UpdatedAt = document.UpdatedAt,
+        PreviewStatus = document.PreviewStatus,
+        PreviewUrl = document.PreviewUrl,
+    };
 }
