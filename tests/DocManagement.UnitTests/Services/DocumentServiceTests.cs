@@ -2,6 +2,7 @@ using DocManagement.Application.Dtos;
 using DocManagement.Application.Services;
 using DocManagement.Domain;
 using DocManagement.UnitTests.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using DocManagement.Domain.Constants;
 
@@ -17,7 +18,7 @@ public class DocumentServiceTests
 
     public DocumentServiceTests()
     {
-        _sut = new DocumentService(_repository, _time);
+        _sut = new DocumentService(_repository, _time, NullLogger<DocumentService>.Instance);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

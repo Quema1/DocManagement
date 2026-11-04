@@ -3,10 +3,11 @@ using DocManagement.Application.Helpers;
 using DocManagement.Application.Interfaces;
 using DocManagement.Domain;
 using DocManagement.Domain.Constants;
+using Microsoft.Extensions.Logging;
 
 namespace DocManagement.Application.Services;
 
-public class DocumentService(IDocumentRepository repository, TimeProvider timeProvider)
+public class DocumentService(IDocumentRepository repository, TimeProvider timeProvider, ILogger<DocumentService> logger)
 {
     public async Task<PagedResult<DocumentResponse>> GetListAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -47,6 +48,8 @@ public class DocumentService(IDocumentRepository repository, TimeProvider timePr
         };
 
         await repository.AddAsync(document, cancellationToken);
+        logger.LogInformation("Document {DocumentId} created", document.Id);
+
         return ToResponse(document);
     }
 
@@ -74,6 +77,8 @@ public class DocumentService(IDocumentRepository repository, TimeProvider timePr
         document.PreviewUrl = null;
 
         await repository.UpdateAsync(document, cancellationToken);
+        logger.LogInformation("Document {DocumentId} updated", document.Id);
+
         return ToResponse(document);
     }
 
@@ -86,6 +91,8 @@ public class DocumentService(IDocumentRepository repository, TimeProvider timePr
         }
 
         await repository.DeleteAsync(document, cancellationToken);
+        logger.LogInformation("Document {DocumentId} deleted", document.Id);
+
         return true;
     }
 

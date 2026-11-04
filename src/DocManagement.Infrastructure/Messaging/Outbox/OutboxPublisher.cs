@@ -78,7 +78,7 @@ internal sealed class OutboxPublisher(
     {
         if (message.Type != OutboxConstants.PreviewRequestedType || !Guid.TryParse(message.Payload, out var documentId))
         {
-            logger.LogError("Dead-lettering unsupported outbox message {MessageId} of type {Type}", message.Id, message.Type);
+            logger.LogError("Dead-lettering unsupported outbox message {OutboxMessageId} of type {Type}", message.Id, message.Type);
             message.Error = $"Unsupported message type '{message.Type}' or payload.";
             message.ProcessedAt = UtcNow;
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -90,6 +90,9 @@ internal sealed class OutboxPublisher(
             await queue.EnqueueAsync(documentId, cancellationToken);
             message.ProcessedAt = UtcNow;
             message.Error = null;
+
+            logger.LogInformation("Published outbox message {OutboxMessageId} for document {DocumentId} after {Attempts} failed attempt(s)",
+                message.Id, documentId, message.Attempts);
         }
         catch (Exception ex) when (IsBrokerUnavailable(ex))
         {
@@ -114,13 +117,14 @@ internal sealed class OutboxPublisher(
     {
         if (OutboxRetryPolicy.RegisterFailure(message, exception.Message, UtcNow))
         {
-            logger.LogError(exception, "Dead-lettering outbox message {MessageId} after {Attempts} attempts", message.Id, message.Attempts);
+            logger.LogError(exception, "Dead-lettering outbox message {OutboxMessageId} for document {DocumentId} after {Attempts} attempts",
+                message.Id, documentId, message.Attempts);
             await MarkPreviewFailedAsync(dbContext, documentId, cancellationToken);
             return;
         }
 
-        logger.LogWarning(exception, "Could not publish outbox message {MessageId} (attempt {Attempt}), next attempt at {NextAttemptAt}",
-            message.Id, message.Attempts, message.NextAttemptAt);
+        logger.LogWarning(exception, "Could not publish outbox message {OutboxMessageId} for document {DocumentId} (attempt {Attempts}), next attempt at {NextAttemptAt}",
+            message.Id, documentId, message.Attempts, message.NextAttemptAt);
     }
 
     private static async Task MarkPreviewFailedAsync(AppDbContext dbContext, Guid documentId, CancellationToken cancellationToken)

@@ -49,7 +49,7 @@ internal sealed class RabbitMqPreviewConsumer(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled error while processing preview for document {DocumentId}", documentId);
+            logger.LogError(ex, "Unhandled error while processing preview for document {DocumentId} (redelivered: {Redelivered})", documentId, args.Redelivered);
 
             if (args.Redelivered)
             {
