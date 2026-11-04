@@ -20,7 +20,7 @@ builder.Services.AddControllers()
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApplicationExceptionHandler>();
 builder.Services.AddOpenApi(o => o.AddBearerSecurityScheme());
-builder.Services.AddHealthChecks();
+builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddApiRateLimiting(builder.Configuration);
 
@@ -42,7 +42,7 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHealthChecks("/health").AllowAnonymous().DisableRateLimiting();
+app.MapApiHealthChecks();
 
 app.Run();
 

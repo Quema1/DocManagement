@@ -44,6 +44,12 @@ services:
       ConnectionStrings__RabbitMq: "amqp://docmgmt:${RABBITMQ_PASSWORD:-DocMgmt_Dev_Passw0rd}@rabbitmq:5672/"
       Messaging__Provider: RabbitMq
       Jwt__SigningKey: "${JWT_SIGNING_KEY:-DocMgmt_Dev_Jwt_Signing_Key_Change_Me_32+}"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       sqlserver:
         condition: service_healthy

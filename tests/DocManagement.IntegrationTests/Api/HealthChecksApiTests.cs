@@ -1,0 +1,22 @@
+using System.Net;
+using DocManagement.Domain.Constants;
+using DocManagement.IntegrationTests.Fixtures;
+
+namespace DocManagement.IntegrationTests.Api;
+
+public class HealthChecksApiTests(ApiFactory factory)
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Health_ChecksDatabase_AndSkipsRabbitMq_ForChannelProvider()
+    {
+        var (status, body) = await factory.CreateClient().GetHealthAsync(HealthCheckConstants.Path, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("Healthy", body.GetProperty("status").GetString());
+        var checks = body.GetProperty("checks");
+        Assert.Equal("Healthy", checks.GetProperty(HealthCheckConstants.DatabaseCheckName).GetProperty("status").GetString());
+        Assert.False(checks.TryGetProperty(HealthCheckConstants.RabbitMqCheckName, out _));
+    }
+}

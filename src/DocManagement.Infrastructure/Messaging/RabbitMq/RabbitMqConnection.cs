@@ -3,7 +3,7 @@ using RabbitMQ.Client;
 
 namespace DocManagement.Infrastructure.Messaging.RabbitMq;
 
-internal sealed class RabbitMqConnection(string connectionString) : IAsyncDisposable
+public sealed class RabbitMqConnection(string connectionString) : IAsyncDisposable
 {
     private readonly ConnectionFactory _factory = new()
     {
