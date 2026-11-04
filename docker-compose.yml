@@ -1,0 +1,55 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:-DocMgmt_Dev_Passw0rd!}
+    ports:
+      - "14333:1433"   # host port 14333 avoids a clash with a locally installed SQL Server on 1433
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: docmgmt
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-DocMgmt_Dev_Passw0rd}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DocManagement: "Server=sqlserver,1433;Database=DocManagement;User Id=sa;Password=${SA_PASSWORD:-DocMgmt_Dev_Passw0rd!};TrustServerCertificate=True"
+      ConnectionStrings__RabbitMq: "amqp://docmgmt:${RABBITMQ_PASSWORD:-DocMgmt_Dev_Passw0rd}@rabbitmq:5672/"
+      Messaging__Provider: RabbitMq
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:-DocMgmt_Dev_Jwt_Signing_Key_Change_Me_32+}"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  sqldata:
+  rabbitdata:

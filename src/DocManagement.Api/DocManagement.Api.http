@@ -1,0 +1,69 @@
+@Api_HostAddress = http://localhost:5329
+
+GET {{Api_HostAddress}}/health
+
+###
+
+# @name token
+POST {{Api_HostAddress}}/api/auth/token
+Content-Type: application/json
+
+{
+  "userName": "alice"
+}
+
+###
+
+@accessToken = {{token.response.body.$.accessToken}}
+
+###
+
+# @name create
+POST {{Api_HostAddress}}/api/documents
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Quarterly report",
+  "description": "Q3 2026 financials"
+}
+
+###
+
+@documentId = {{create.response.body.$.id}}
+
+GET {{Api_HostAddress}}/api/documents?page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+###
+
+GET {{Api_HostAddress}}/api/documents/{{documentId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+PUT {{Api_HostAddress}}/api/documents/{{documentId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Quarterly report (final)",
+  "description": "Q3 2026 financials"
+}
+
+###
+
+POST {{Api_HostAddress}}/api/documents/{{documentId}}/preview
+Authorization: Bearer {{accessToken}}
+
+###
+
+GET {{Api_HostAddress}}/api/documents/{{documentId}}/preview
+Authorization: Bearer {{accessToken}}
+
+###
+
+DELETE {{Api_HostAddress}}/api/documents/{{documentId}}
+Authorization: Bearer {{accessToken}}
+
+###
