@@ -41,12 +41,6 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
     public Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(_documents.TryGetValue(id, out var document) ? Copy(document) : null);
 
-    public Task<IReadOnlyList<Guid>> GetIdsByPreviewStatusAsync(PreviewStatus status, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<Guid> ids = _documents.Values.Where(d => d.PreviewStatus == status).Select(d => d.Id).ToList();
-        return Task.FromResult(ids);
-    }
-
     public Task AddAsync(Document document, CancellationToken cancellationToken = default)
     {
         _documents.Add(document.Id, Copy(document));

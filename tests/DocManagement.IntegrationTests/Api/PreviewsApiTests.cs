@@ -14,7 +14,7 @@ public class PreviewsApiTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task RequestedPreview_BecomesReady_ThroughOutboxAndWorker()
+    public async Task RequestedPreview_BecomesReady_ThroughOutboxAndRabbitMq()
     {
         var client = await factory.CreateAuthenticatedClientAsync(Ct);
         var document = await client.CreateDocumentAsync(Ct);

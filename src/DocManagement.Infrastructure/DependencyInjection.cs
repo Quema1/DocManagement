@@ -1,7 +1,5 @@
 using DocManagement.Application.Interfaces;
 using DocManagement.Domain.Constants;
-using DocManagement.Infrastructure.Messaging;
-using DocManagement.Infrastructure.Messaging.InMemory;
 using DocManagement.Infrastructure.Messaging.Outbox;
 using DocManagement.Infrastructure.Messaging.RabbitMq;
 using DocManagement.Infrastructure.Persistence;
@@ -23,25 +21,12 @@ public static class DependencyInjection
 
         services.AddScoped<IDocumentRepository, DocumentRepository>();
 
-        var messaging = configuration.GetSection(MessagingOptions.SectionName).Get<MessagingOptions>() ?? new MessagingOptions();
+        var rabbitMqConnectionString = GetRequiredConnectionString(configuration, ConnectionStringNames.RabbitMq);
 
+        services.AddSingleton(_ => new RabbitMqConnection(rabbitMqConnectionString));
+        services.AddSingleton<IPreviewQueue, RabbitMqPreviewQueue>();
         services.AddHostedService<OutboxPublisher>();
-
-        if (messaging.Provider == MessagingProvider.RabbitMq)
-        {
-            var rabbitMqConnectionString = GetRequiredConnectionString(configuration, ConnectionStringNames.RabbitMq);
-
-            services.AddSingleton(_ => new RabbitMqConnection(rabbitMqConnectionString));
-            services.AddSingleton<IPreviewQueue, RabbitMqPreviewQueue>();
-            services.AddHostedService<RabbitMqPreviewConsumer>();
-        }
-        else
-        {
-            services.AddSingleton<PendingPreviewRequeuer>();
-            services.AddSingleton<ChannelPreviewQueue>();
-            services.AddSingleton<IPreviewQueue>(sp => sp.GetRequiredService<ChannelPreviewQueue>());
-            services.AddHostedService<ChannelPreviewConsumer>();
-        }
+        services.AddHostedService<RabbitMqPreviewConsumer>();
 
         return services;
     }

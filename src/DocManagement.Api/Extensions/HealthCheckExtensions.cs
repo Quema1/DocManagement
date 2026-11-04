@@ -1,6 +1,5 @@
 using DocManagement.Api.HealthChecks;
 using DocManagement.Domain.Constants;
-using DocManagement.Infrastructure.Messaging;
 using DocManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -11,16 +10,11 @@ internal static class HealthCheckExtensions
 {
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
-        var checks = services.AddHealthChecks()
-            .AddDbContextCheck<AppDbContext>(HealthCheckConstants.DatabaseCheckName);
-
-        var messaging = configuration.GetSection(MessagingOptions.SectionName).Get<MessagingOptions>() ?? new MessagingOptions();
-        if (messaging.Provider == MessagingProvider.RabbitMq)
-        {
-            checks.AddCheck<RabbitMqHealthCheck>(
+        services.AddHealthChecks()
+            .AddDbContextCheck<AppDbContext>(HealthCheckConstants.DatabaseCheckName)
+            .AddCheck<RabbitMqHealthCheck>(
                 HealthCheckConstants.RabbitMqCheckName,
                 timeout: TimeSpan.FromSeconds(HealthCheckConstants.TimeoutSeconds));
-        }
 
         return services;
     }

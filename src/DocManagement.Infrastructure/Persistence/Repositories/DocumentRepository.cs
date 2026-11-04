@@ -28,14 +28,6 @@ public class DocumentRepository(AppDbContext dbContext) : IDocumentRepository
         return dbContext.Documents.FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetIdsByPreviewStatusAsync(PreviewStatus status, CancellationToken cancellationToken = default)
-    {
-        return await dbContext.Documents
-            .Where(d => d.PreviewStatus == status)
-            .Select(d => d.Id)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task AddAsync(Document document, CancellationToken cancellationToken = default)
     {
         dbContext.Documents.Add(document);

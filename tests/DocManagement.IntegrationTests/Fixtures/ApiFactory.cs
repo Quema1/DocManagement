@@ -5,18 +5,18 @@ using System.Text.Json.Serialization;
 using DocManagement.Application.Dtos;
 using DocManagement.Application.Options;
 using DocManagement.Domain.Constants;
-using DocManagement.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.MsSql;
+using Testcontainers.RabbitMq;
 
 [assembly: AssemblyFixture(typeof(DocManagement.IntegrationTests.Fixtures.ApiFactory))]
 
 namespace DocManagement.IntegrationTests.Fixtures;
 
-public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -24,10 +24,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     };
 
     private readonly MsSqlContainer _database = new MsSqlBuilder(TestConstants.SqlServerImage).Build();
+    private readonly RabbitMqContainer _rabbitMq = new RabbitMqBuilder(TestConstants.RabbitMqImage).Build();
 
-    public virtual async ValueTask InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
-        await _database.StartAsync();
+        await Task.WhenAll(_database.StartAsync(), _rabbitMq.StartAsync());
         StartServer();
     }
 
@@ -40,14 +41,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.UseEnvironment(Environments.Development);
         builder.UseSetting($"ConnectionStrings:{ConnectionStringNames.Database}", connectionString);
-        ConfigureMessaging(builder);
+        builder.UseSetting($"ConnectionStrings:{ConnectionStringNames.RabbitMq}", _rabbitMq.GetConnectionString());
         builder.UseSetting($"{PreviewOptions.SectionName}:{nameof(PreviewOptions.BaseUrl)}", TestConstants.PreviewBaseUrl);
         builder.UseSetting($"{PreviewOptions.SectionName}:{nameof(PreviewOptions.SimulatedDelay)}", TimeSpan.Zero.ToString());
-    }
-
-    protected virtual void ConfigureMessaging(IWebHostBuilder builder)
-    {
-        builder.UseSetting($"{MessagingOptions.SectionName}:{nameof(MessagingOptions.Provider)}", nameof(MessagingProvider.Channel));
     }
 
     public async Task<HttpClient> CreateAuthenticatedClientAsync(CancellationToken cancellationToken)
@@ -65,5 +61,6 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         await base.DisposeAsync();
         await _database.DisposeAsync();
+        await _rabbitMq.DisposeAsync();
     }
 }

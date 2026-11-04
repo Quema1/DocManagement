@@ -9,7 +9,7 @@ public class HealthChecksApiTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Health_ChecksDatabase_AndSkipsRabbitMq_ForChannelProvider()
+    public async Task Health_ReportsDatabaseAndRabbitMq_AsHealthy()
     {
         var (status, body) = await factory.CreateClient().GetHealthAsync(HealthCheckConstants.Path, Ct);
 
@@ -17,6 +17,6 @@ public class HealthChecksApiTests(ApiFactory factory)
         Assert.Equal("Healthy", body.GetProperty("status").GetString());
         var checks = body.GetProperty("checks");
         Assert.Equal("Healthy", checks.GetProperty(HealthCheckConstants.DatabaseCheckName).GetProperty("status").GetString());
-        Assert.False(checks.TryGetProperty(HealthCheckConstants.RabbitMqCheckName, out _));
+        Assert.Equal("Healthy", checks.GetProperty(HealthCheckConstants.RabbitMqCheckName).GetProperty("status").GetString());
     }
 }
