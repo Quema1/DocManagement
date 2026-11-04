@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using DocManagement.Application.Interfaces;
 
-namespace DocManagement.Infrastructure.Messaging;
+namespace DocManagement.Infrastructure.Messaging.InMemory;
 
 internal sealed class ChannelPreviewQueue : IPreviewQueue
 {

@@ -3,7 +3,7 @@ using DocManagement.Domain;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace DocManagement.Infrastructure.Messaging;
+namespace DocManagement.Infrastructure.Messaging.InMemory;
 
 internal sealed class PendingPreviewRequeuer(
     IPreviewQueue queue,

@@ -11,7 +11,6 @@ internal sealed class ApplicationExceptionHandler(IProblemDetailsService problem
         (int Status, string Title)? problem = exception switch
         {
             ConcurrencyConflictException => (StatusCodes.Status409Conflict, "The document was modified by another request. Reload it and try again."),
-            PreviewQueueUnavailableException => (StatusCodes.Status503ServiceUnavailable, "Preview generation is temporarily unavailable. Try again later."),
             _ => null,
         };
 

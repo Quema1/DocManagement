@@ -4,14 +4,14 @@ using DocManagement.Application.Interfaces;
 using DocManagement.Application.Options;
 using DocManagement.Application.Helpers;
 using DocManagement.Domain;
+using DocManagement.Domain.Constants;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DocManagement.Application.Services;
 
 public class PreviewService(
-    IDocumentRepository repository,
-    IPreviewQueue queue,
+    IDocumentRepository documentRepository,
     UrlHelper urlHelper,
     IOptions<PreviewOptions> options,
     TimeProvider timeProvider,
@@ -19,7 +19,7 @@ public class PreviewService(
 {
     public async Task<PreviewResponse?> CreateAsync(Guid documentId, CancellationToken cancellationToken = default)
     {
-        var document = await repository.GetByIdAsync(documentId, cancellationToken);
+        var document = await documentRepository.GetByIdAsync(documentId, cancellationToken);
         if (document is null)
         {
             return null;
@@ -29,20 +29,9 @@ public class PreviewService(
         {
             document.PreviewStatus = PreviewStatus.Pending;
             document.PreviewUrl = null;
-            await repository.UpdateAsync(document, cancellationToken);
+            await documentRepository.UpdateAsync(document, CreatePreviewRequestedMessage(document.Id), cancellationToken);
 
-            try
-            {
-                await queue.EnqueueAsync(document.Id, cancellationToken);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Could not queue preview generation for document {DocumentId}", document.Id);
-                await MarkFailedAsync(document, cancellationToken);
-                throw new PreviewQueueUnavailableException($"Could not queue preview generation for document {document.Id}.", ex);
-            }
-
-            logger.LogInformation("Preview generation queued for document {DocumentId}", document.Id);
+            logger.LogInformation("Preview generation requested for document {DocumentId}", document.Id);
         }
 
         return ToResponse(document);
@@ -50,13 +39,13 @@ public class PreviewService(
 
     public async Task<PreviewResponse?> GetAsync(Guid documentId, CancellationToken cancellationToken = default)
     {
-        var document = await repository.GetByIdAsync(documentId, cancellationToken);
+        var document = await documentRepository.GetByIdAsync(documentId, cancellationToken);
         return document is null ? null : ToResponse(document);
     }
 
     public async Task GenerateAsync(Guid documentId, CancellationToken cancellationToken = default)
     {
-        var document = await repository.GetByIdAsync(documentId, cancellationToken);
+        var document = await documentRepository.GetByIdAsync(documentId, cancellationToken);
 
         if (document is not { PreviewStatus: PreviewStatus.Pending })
         {
@@ -70,7 +59,7 @@ public class PreviewService(
 
             document.PreviewUrl = urlHelper.Generate(document);
             document.PreviewStatus = PreviewStatus.Ready;
-            await repository.UpdateAsync(document, cancellationToken);
+            await documentRepository.UpdateAsync(document, cancellationToken);
 
             logger.LogInformation("Preview generated for document {DocumentId}", documentId);
         }
@@ -85,13 +74,21 @@ public class PreviewService(
         }
     }
 
+    private OutboxMessage CreatePreviewRequestedMessage(Guid documentId) => new()
+    {
+        Id = Guid.NewGuid(),
+        Type = OutboxConstants.PreviewRequestedType,
+        Payload = documentId.ToString(),
+        OccurredAt = timeProvider.GetUtcNow().UtcDateTime,
+    };
+
     private async Task MarkFailedAsync(Document document, CancellationToken cancellationToken)
     {
         try
         {
             document.PreviewStatus = PreviewStatus.Failed;
             document.PreviewUrl = null;
-            await repository.UpdateAsync(document, cancellationToken);
+            await documentRepository.UpdateAsync(document, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

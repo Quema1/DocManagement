@@ -3,13 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace DocManagement.Infrastructure.Messaging;
+namespace DocManagement.Infrastructure.Messaging.InMemory;
 
-internal sealed class PreviewWorker(
+internal sealed class ChannelPreviewConsumer(
     ChannelPreviewQueue queue,
     PendingPreviewRequeuer requeuer,
     IServiceScopeFactory scopeFactory,
-    ILogger<PreviewWorker> logger) : BackgroundService
+    ILogger<ChannelPreviewConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

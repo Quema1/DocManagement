@@ -1,8 +1,11 @@
 using DocManagement.Application.Interfaces;
 using DocManagement.Domain.Constants;
 using DocManagement.Infrastructure.Messaging;
+using DocManagement.Infrastructure.Messaging.InMemory;
+using DocManagement.Infrastructure.Messaging.Outbox;
+using DocManagement.Infrastructure.Messaging.RabbitMq;
 using DocManagement.Infrastructure.Persistence;
-using DocManagement.Infrastructure.Repositories;
+using DocManagement.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +25,7 @@ public static class DependencyInjection
 
         var messaging = configuration.GetSection(MessagingOptions.SectionName).Get<MessagingOptions>() ?? new MessagingOptions();
 
-        services.AddSingleton<PendingPreviewRequeuer>();
+        services.AddHostedService<OutboxPublisher>();
 
         if (messaging.Provider == MessagingProvider.RabbitMq)
         {
@@ -34,9 +37,10 @@ public static class DependencyInjection
         }
         else
         {
+            services.AddSingleton<PendingPreviewRequeuer>();
             services.AddSingleton<ChannelPreviewQueue>();
             services.AddSingleton<IPreviewQueue>(sp => sp.GetRequiredService<ChannelPreviewQueue>());
-            services.AddHostedService<PreviewWorker>();
+            services.AddHostedService<ChannelPreviewConsumer>();
         }
 
         return services;

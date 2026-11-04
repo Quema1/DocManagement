@@ -3,6 +3,7 @@ using DocManagement.Application.Options;
 using DocManagement.Application.Helpers;
 using DocManagement.Application.Services;
 using DocManagement.Domain;
+using DocManagement.Domain.Constants;
 using DocManagement.UnitTests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -13,7 +14,6 @@ namespace DocManagement.UnitTests.Services;
 public class PreviewServiceTests
 {
     private readonly InMemoryDocumentRepository _repository = new();
-    private readonly FakePreviewQueue _queue = new();
     private readonly UrlHelper _urlHelper;
     private readonly PreviewService _sut;
 
@@ -25,7 +25,7 @@ public class PreviewServiceTests
             SimulatedDelay = TimeSpan.Zero,
         });
         _urlHelper = new UrlHelper(options);
-        _sut = new PreviewService(_repository, _queue, _urlHelper, options, new FakeTimeProvider(), NullLogger<PreviewService>.Instance);
+        _sut = new PreviewService(_repository, _urlHelper, options, new FakeTimeProvider(), NullLogger<PreviewService>.Instance);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -34,13 +34,13 @@ public class PreviewServiceTests
     public async Task CreateAsync_ReturnsNull_WhenDocumentDoesNotExist()
     {
         Assert.Null(await _sut.CreateAsync(Guid.NewGuid(), Ct));
-        Assert.Empty(_queue.Enqueued);
+        Assert.Empty(_repository.OutboxMessages);
     }
 
     [Theory]
     [InlineData(PreviewStatus.None)]
     [InlineData(PreviewStatus.Failed)]
-    public async Task CreateAsync_MarksPendingAndQueues_WhenNoPreviewYet(PreviewStatus initialStatus)
+    public async Task CreateAsync_MarksPendingAndWritesOutboxMessage_WhenNoPreviewYet(PreviewStatus initialStatus)
     {
         var document = _repository.Seed(TestDocuments.Create(previewStatus: initialStatus));
 
@@ -50,30 +50,33 @@ public class PreviewServiceTests
         Assert.Equal(PreviewStatus.Pending, result.Status);
         Assert.Null(result.Url);
         Assert.Equal(PreviewStatus.Pending, document.PreviewStatus);
-        Assert.Equal([document.Id], _queue.Enqueued);
+
+        var message = Assert.Single(_repository.OutboxMessages);
+        Assert.Equal(OutboxConstants.PreviewRequestedType, message.Type);
+        Assert.Equal(document.Id.ToString(), message.Payload);
+        Assert.Null(message.ProcessedAt);
     }
 
     [Fact]
-    public async Task CreateAsync_MarksFailedAndThrowsQueueUnavailable_WhenQueueFails()
+    public async Task CreateAsync_DoesNotWriteOutboxMessage_WhenUpdateFails()
     {
         var document = _repository.Seed(TestDocuments.Create());
-        _queue.FailWith = new InvalidOperationException("broker down");
+        _repository.UpdateFailures.Enqueue(new ConcurrencyConflictException("changed meanwhile"));
 
-        await Assert.ThrowsAsync<PreviewQueueUnavailableException>(() => _sut.CreateAsync(document.Id, Ct));
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() => _sut.CreateAsync(document.Id, Ct));
 
-        Assert.Equal(PreviewStatus.Failed, document.PreviewStatus);
-        Assert.Null(document.PreviewUrl);
+        Assert.Empty(_repository.OutboxMessages);
     }
 
     [Fact]
-    public async Task CreateAsync_DoesNotQueueTwice_WhenAlreadyPending()
+    public async Task CreateAsync_DoesNotRequestTwice_WhenAlreadyPending()
     {
         var document = _repository.Seed(TestDocuments.Create(previewStatus: PreviewStatus.Pending));
 
         var result = await _sut.CreateAsync(document.Id, Ct);
 
         Assert.Equal(PreviewStatus.Pending, result!.Status);
-        Assert.Empty(_queue.Enqueued);
+        Assert.Empty(_repository.OutboxMessages);
         Assert.Equal(0, _repository.SuccessfulUpdates);
     }
 
@@ -86,7 +89,7 @@ public class PreviewServiceTests
 
         Assert.Equal(PreviewStatus.Ready, result!.Status);
         Assert.Equal("https://previews.test/p.png", result.Url);
-        Assert.Empty(_queue.Enqueued);
+        Assert.Empty(_repository.OutboxMessages);
     }
 
     [Fact]

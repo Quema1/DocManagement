@@ -1,7 +1,7 @@
 using DocManagement.Domain.Constants;
 using RabbitMQ.Client;
 
-namespace DocManagement.Infrastructure.Messaging;
+namespace DocManagement.Infrastructure.Messaging.RabbitMq;
 
 internal sealed class RabbitMqConnection(string connectionString) : IAsyncDisposable
 {

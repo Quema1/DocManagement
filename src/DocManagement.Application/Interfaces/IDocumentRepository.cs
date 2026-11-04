@@ -16,5 +16,7 @@ public interface IDocumentRepository
 
     Task UpdateAsync(Document document, CancellationToken cancellationToken = default);
 
+    Task UpdateAsync(Document document, OutboxMessage outboxMessage, CancellationToken cancellationToken = default);
+
     Task DeleteAsync(Document document, CancellationToken cancellationToken = default);
 }

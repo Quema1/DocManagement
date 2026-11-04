@@ -1,10 +1,9 @@
 using DocManagement.Application.Exceptions;
 using DocManagement.Application.Interfaces;
 using DocManagement.Domain;
-using DocManagement.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace DocManagement.Infrastructure.Repositories;
+namespace DocManagement.Infrastructure.Persistence.Repositories;
 
 public class DocumentRepository(AppDbContext dbContext) : IDocumentRepository
 {
@@ -51,6 +50,12 @@ public class DocumentRepository(AppDbContext dbContext) : IDocumentRepository
         }
 
         await SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Document document, OutboxMessage outboxMessage, CancellationToken cancellationToken = default)
+    {
+        dbContext.OutboxMessages.Add(outboxMessage);
+        await UpdateAsync(document, cancellationToken);
     }
 
     public async Task DeleteAsync(Document document, CancellationToken cancellationToken = default)

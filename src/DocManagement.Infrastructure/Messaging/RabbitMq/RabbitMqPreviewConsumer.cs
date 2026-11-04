@@ -8,11 +8,10 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 
-namespace DocManagement.Infrastructure.Messaging;
+namespace DocManagement.Infrastructure.Messaging.RabbitMq;
 
 internal sealed class RabbitMqPreviewConsumer(
     RabbitMqConnection connection,
-    PendingPreviewRequeuer requeuer,
     IServiceScopeFactory scopeFactory,
     ILogger<RabbitMqPreviewConsumer> logger) : BackgroundService
 {
@@ -24,8 +23,6 @@ internal sealed class RabbitMqPreviewConsumer(
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.ReceivedAsync += (_, args) => HandleAsync(channel, args, stoppingToken);
         await channel.BasicConsumeAsync(MessagingConstants.PreviewQueueName, autoAck: false, consumer, stoppingToken);
-
-        await requeuer.RequeueAsync(stoppingToken);
 
         await Task.Delay(Timeout.Infinite, stoppingToken);
     }

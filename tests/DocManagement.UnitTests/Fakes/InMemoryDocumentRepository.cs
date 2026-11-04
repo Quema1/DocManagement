@@ -13,6 +13,8 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
 
     public IReadOnlyCollection<Document> All => _documents.Values;
 
+    public List<OutboxMessage> OutboxMessages { get; } = [];
+
     public Document Seed(Document document)
     {
         _documents[document.Id] = document;
@@ -57,6 +59,12 @@ internal sealed class InMemoryDocumentRepository : IDocumentRepository
         _documents[document.Id] = document;
         SuccessfulUpdates++;
         return Task.CompletedTask;
+    }
+
+    public async Task UpdateAsync(Document document, OutboxMessage outboxMessage, CancellationToken cancellationToken = default)
+    {
+        await UpdateAsync(document, cancellationToken);
+        OutboxMessages.Add(outboxMessage);
     }
 
     public Task DeleteAsync(Document document, CancellationToken cancellationToken = default)
